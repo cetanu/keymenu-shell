@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+commit_msg_file="$1"
+commit_msg=$(head -n 1 "$commit_msg_file")
+
+# Allow fixup!, squash!, merge commits
+if echo "$commit_msg" | grep -qE '^(Merge branch|fixup!|squash!)'; then
+  exit 0
+fi
+
+# Conventional commit regex: type(scope optional)!: description
+pattern='^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([a-zA-Z0-9_\-\.]+\))?!?: .+$'
+
+if ! echo "$commit_msg" | grep -qE "$pattern"; then
+  echo "❌ Invalid commit message format: \"$commit_msg\""
+  echo ""
+  echo "Commit messages must adhere to Conventional Commits format, e.g.:"
+  echo "  feat: add new keybinding parser"
+  echo "  fix(ui): prevent panic on terminal resize"
+  echo "  docs: update README"
+  echo ""
+  echo "Allowed types: build, chore, ci, docs, feat, fix, perf, refactor, revert, style, test"
+  exit 1
+fi
