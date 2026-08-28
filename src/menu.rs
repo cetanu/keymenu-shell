@@ -30,11 +30,11 @@ impl Menu {
         }
 
         let mut root = Node::default();
-        for group in config.groups {
-            insert_group(&mut root, group)?;
-        }
         for binding in config.bindings {
             insert_binding(&mut root, binding)?;
+        }
+        for group in config.groups {
+            insert_group(&mut root, group)?;
         }
         validate(&root, &mut String::new())?;
         Ok(Self { root })
@@ -72,28 +72,49 @@ impl Menu {
 }
 
 fn key_path<'a>(root: &'a mut Node, keys: &str, kind: &str) -> Result<&'a mut Node> {
+    validate_keys(keys, kind)?;
+    let mut node = root;
+    for key in keys.chars() {
+        node = node.children.entry(key).or_default();
+    }
+    Ok(node)
+}
+
+fn validate_keys(keys: &str, kind: &str) -> Result<()> {
     if keys.is_empty() {
         bail!("{kind} keys cannot be empty");
     }
-    let mut node = root;
     for key in keys.chars() {
         if key.is_control() {
             bail!("{kind} {keys:?} contains a control character");
         }
-        node = node.children.entry(key).or_default();
     }
-    Ok(node)
+    Ok(())
 }
 
 fn insert_group(root: &mut Node, group: Group) -> Result<()> {
     if group.description.trim().is_empty() {
         bail!("group {:?} has an empty description", group.keys);
     }
-    let node = key_path(root, &group.keys, "group")?;
+    validate_keys(&group.keys, "group")?;
+    let Some(node) = node_at_path_mut(root, &group.keys) else {
+        return Ok(());
+    };
+    if node.command.is_some() {
+        return Ok(());
+    }
     if node.description.replace(group.description).is_some() {
         bail!("duplicate group {:?}", group.keys);
     }
     Ok(())
+}
+
+fn node_at_path_mut<'a>(root: &'a mut Node, keys: &str) -> Option<&'a mut Node> {
+    let mut node = root;
+    for key in keys.chars() {
+        node = node.children.get_mut(&key)?;
+    }
+    Some(node)
 }
 
 fn insert_binding(root: &mut Node, binding: Binding) -> Result<()> {
@@ -124,9 +145,6 @@ fn insert_binding(root: &mut Node, binding: Binding) -> Result<()> {
 }
 
 fn validate(node: &Node, prefix: &mut String) -> Result<()> {
-    if !prefix.is_empty() && node.command.is_none() && node.children.is_empty() {
-        bail!("group {prefix:?} has no bindings");
-    }
     if node.command.is_some() && !node.children.is_empty() {
         bail!("binding {prefix:?} is also a prefix of another binding");
     }
@@ -189,14 +207,14 @@ mod tests {
     }
 
     #[test]
-    fn rejects_groups_without_bindings() {
+    fn ignores_groups_without_bindings() {
         let mut config = config();
         config.groups.push(Group {
             keys: "x".into(),
             description: "Unused".into(),
         });
-        let error = Menu::new(config).unwrap_err();
-        assert!(error.to_string().contains("has no bindings"));
+        let menu = Menu::new(config).unwrap();
+        assert!(menu.choices(&[]).iter().all(|choice| choice.key != 'x'));
     }
 
     #[test]
