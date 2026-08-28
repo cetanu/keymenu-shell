@@ -4,6 +4,8 @@ use anyhow::{Result, bail};
 
 use crate::config::{Binding, Config, Group};
 
+const OMITTED: &str = "…";
+
 #[derive(Debug, Default)]
 struct Node {
     description: Option<String>,
@@ -48,7 +50,7 @@ impl Menu {
             .iter()
             .map(|(&key, child)| Choice {
                 key,
-                description: child.description.as_deref().unwrap_or("Group"),
+                description: child.description.as_deref().unwrap_or(OMITTED),
                 is_group: !child.children.is_empty(),
             })
             .collect()
@@ -93,7 +95,11 @@ fn validate_keys(keys: &str, kind: &str) -> Result<()> {
 }
 
 fn insert_group(root: &mut Node, group: Group) -> Result<()> {
-    if group.description.trim().is_empty() {
+    if group
+        .description
+        .as_ref()
+        .is_some_and(|description| description.trim().is_empty())
+    {
         bail!("group {:?} has an empty description", group.keys);
     }
     validate_keys(&group.keys, "group")?;
@@ -103,7 +109,11 @@ fn insert_group(root: &mut Node, group: Group) -> Result<()> {
     if node.command.is_some() {
         return Ok(());
     }
-    if node.description.replace(group.description).is_some() {
+    if node
+        .description
+        .replace(group.description.unwrap_or_else(|| OMITTED.into()))
+        .is_some()
+    {
         bail!("duplicate group {:?}", group.keys);
     }
     Ok(())
@@ -164,7 +174,7 @@ mod tests {
         Config {
             groups: vec![Group {
                 keys: "g".into(),
-                description: "Git".into(),
+                description: Some("Git".into()),
             }],
             bindings: vec![
                 Binding {
@@ -211,7 +221,7 @@ mod tests {
         let mut config = config();
         config.groups.push(Group {
             keys: "x".into(),
-            description: "Unused".into(),
+            description: Some("Unused".into()),
         });
         let menu = Menu::new(config).unwrap();
         assert!(menu.choices(&[]).iter().all(|choice| choice.key != 'x'));
@@ -229,5 +239,22 @@ mod tests {
         };
         let menu = Menu::new(config).unwrap();
         assert_eq!(menu.choices(&[])[0].description, "git status");
+    }
+
+    #[test]
+    fn uses_ellipsis_for_groups_without_descriptions() {
+        let config = Config {
+            groups: vec![Group {
+                keys: "g".into(),
+                description: None,
+            }],
+            bindings: vec![Binding {
+                keys: "gs".into(),
+                description: None,
+                command: "git status".into(),
+            }],
+        };
+        let menu = Menu::new(config).unwrap();
+        assert_eq!(menu.choices(&[])[0].description, OMITTED);
     }
 }

@@ -37,10 +37,11 @@ positional or keyword-based, including a mixture of both. Strings support
 `\"`, `\\`, `\n`, `\r`, and `\t` escapes. Unknown statements, unknown or
 duplicate keyword arguments, and malformed strings are errors.
 
-`group` takes a key chord and description: `group("g", "Git")`. `keybind`
-takes a key chord, command, and optional description:
+`group` takes a key chord and optional description: `group("g", "Git")`.
+`keybind` takes a key chord, command, and optional description:
 `keybind("gs", "Status", "git status")`. When a keybinding omits its
-description, the command is displayed as its description. The equivalent
+description, the menu displays its command; an unnamed group displays `…`.
+The equivalent
 keyword forms, such as `group("g", description: "Git")` and
 `keybind("gs", command: "git status", description: "Status")`, remain
 supported, as do mixed forms such as

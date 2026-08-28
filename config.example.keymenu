@@ -10,7 +10,7 @@ keybind("r", "Reload shell", "exec $SHELL -l")
 keybind("hw", "echo Hello World")
 keybind("hb", "echo Hello Bob")
 
-group("1", "Numbered")
+group("1")
 keybind("11", "echo first")
 keybind("12", "echo second")
 keybind("13", "echo third")

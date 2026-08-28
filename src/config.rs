@@ -11,7 +11,7 @@ pub struct Config {
 #[derive(Clone, Debug)]
 pub struct Group {
     pub keys: String,
-    pub description: String,
+    pub description: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -89,7 +89,7 @@ impl<'a> Parser<'a> {
             match statement.as_str() {
                 "group" => {
                     reject_unknown(&arguments.keyword, &["description"], "group")?;
-                    let description = argument_value(
+                    let description = optional_argument_value(
                         arguments.positional,
                         &mut arguments.keyword,
                         "description",
@@ -250,30 +250,20 @@ impl<'a> Parser<'a> {
     }
 }
 
-fn take_argument(
-    arguments: &mut BTreeMap<String, String>,
-    name: &str,
-    statement: &str,
-) -> Result<String> {
-    arguments
-        .remove(name)
-        .with_context(|| format!("{statement} is missing required argument {name:?}"))
-}
-
-fn argument_value(
+fn optional_argument_value(
     mut positional: Vec<String>,
     keyword: &mut BTreeMap<String, String>,
     name: &str,
     statement: &str,
-) -> Result<String> {
+) -> Result<Option<String>> {
     if positional.len() > 1 {
         bail!("{statement} has too many positional arguments");
     }
     match (positional.pop(), keyword.remove(name)) {
         (Some(_), Some(_)) => bail!("{statement} specifies argument {name:?} more than once"),
-        (Some(value), None) => Ok(value),
-        (None, Some(value)) => Ok(value),
-        (None, None) => take_argument(keyword, name, statement),
+        (Some(value), None) => Ok(Some(value)),
+        (None, Some(value)) => Ok(Some(value)),
+        (None, None) => Ok(None),
     }
 }
 
@@ -344,7 +334,7 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(config.groups[0].description, "Git");
+        assert_eq!(config.groups[0].description.as_deref(), Some("Git"));
         assert_eq!(config.bindings[0].keys, "gs");
         assert_eq!(config.bindings[0].description.as_deref(), Some("Status"));
         assert_eq!(config.bindings[0].command, r#"printf "ok\n""#);
@@ -359,7 +349,7 @@ mod tests {
             "#,
         )
         .unwrap();
-        assert_eq!(config.groups[0].description, "Git");
+        assert_eq!(config.groups[0].description.as_deref(), Some("Git"));
         assert_eq!(config.bindings[0].command, "git status");
     }
 
@@ -376,12 +366,17 @@ mod tests {
     #[test]
     fn parses_all_argument_permutations() {
         macro_rules! assert_statement {
-            ($source:literal => group($keys:literal, $description:literal)) => {{
+            ($source:literal => group($keys:literal, $description:expr)) => {{
                 let config = parse($source).unwrap();
                 assert!(config.bindings.is_empty(), "{}", $source);
                 assert_eq!(config.groups.len(), 1, "{}", $source);
                 assert_eq!(config.groups[0].keys, $keys, "{}", $source);
-                assert_eq!(config.groups[0].description, $description, "{}", $source);
+                assert_eq!(
+                    config.groups[0].description.as_deref(),
+                    $description,
+                    "{}",
+                    $source
+                );
             }};
             ($source:literal => keybind($keys:literal, $description:expr, $command:literal)) => {{
                 let config = parse($source).unwrap();
@@ -398,8 +393,9 @@ mod tests {
             }};
         }
 
-        assert_statement!(r#"group("g", "Git")"# => group("g", "Git"));
-        assert_statement!(r#"group("g", description: "Git")"# => group("g", "Git"));
+        assert_statement!(r#"group("g", "Git")"# => group("g", Some("Git")));
+        assert_statement!(r#"group("g", description: "Git")"# => group("g", Some("Git")));
+        assert_statement!(r#"group("g")"# => group("g", None));
 
         assert_statement!(
             r#"keybind("g", "Does a thing", "echo foo")"#
@@ -433,16 +429,6 @@ mod tests {
     fn keybind_description_is_optional() {
         let config = parse(r#"keybind("s", "git status")"#).unwrap();
         assert_eq!(config.bindings[0].description, None);
-    }
-
-    #[test]
-    fn group_description_is_required() {
-        let error = parse(r#"group("g")"#).unwrap_err();
-        assert!(
-            error
-                .to_string()
-                .contains("missing required argument \"description\"")
-        );
     }
 
     #[test]
