@@ -9,11 +9,15 @@ state-changing commands such as `cd` and `export` affect your active session.
 
 ## Install
 
-Build and install the binary with Rust:
+Install the published crate with Cargo:
 
 ```console
-cargo install --path .
+cargo install keymenu-shell
 ```
+
+Alternatively, download the archive for your Linux architecture from the
+[latest GitHub release](https://github.com/cetanu/keymenu-shell/releases/latest),
+extract `keymenu`, and place it somewhere on your `PATH`.
 
 Create `~/.config/keymenu/config.keymenu` (or set `KEYMENU_CONFIG` to another
 path):
