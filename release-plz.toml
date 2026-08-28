@@ -4,6 +4,3 @@ git_tag_enable = true
 
 # Publish releases directly to crates.io
 publish = true
-
-# Release commit message format (chore)
-git_release_commit = "chore: release {{ package }} version {{ version }}"
