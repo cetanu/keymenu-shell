@@ -2,5 +2,8 @@
 # Enable Git tags creation (defaults to v<version>, e.g., v0.1.1)
 git_tag_enable = true
 
+# Keep the GitHub release mutable until CI attaches the release binaries.
+git_release_draft = true
+
 # Publish releases directly to crates.io
 publish = true
