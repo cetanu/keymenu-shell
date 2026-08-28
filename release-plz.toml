@@ -1,0 +1,12 @@
+[workspace]
+# Enable Git tags creation (defaults to v<version>, e.g., v0.1.1)
+git_tag_enable = true
+
+# Update Cargo.lock automatically on version bumps
+cargo_lock_update = true
+
+# Publish releases directly to crates.io
+publish = true
+
+# Release commit message format (chore)
+git_release_commit_message = "chore: release {{ package }} version {{ version }}"

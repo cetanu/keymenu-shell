@@ -1,0 +1,17 @@
+[package]
+name = "keymenu-shell"
+version = "0.1.0"
+edition = "2024"
+description = "Mnemonic key chords for your shell"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/cetanu/keymenu-shell"
+
+[[bin]]
+name = "keymenu"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1.0"
+crossterm = "0.29"
+unicode-width = "0.2"
+usage = { package = "usage-rs", version = "6" }

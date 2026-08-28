@@ -1,0 +1,11 @@
+# Prefixes can be named so the root menu stays memorable.
+group("g", description: "Git")
+
+keybind("gs", description: "Status", command: "git status")
+keybind("gl", description: "Recent log", command: "git log --oneline --decorate -20")
+
+keybind("f", description: "List files", command: "ls -la")
+keybind("r", description: "Reload shell", command: "exec $SHELL -l")
+
+keybind("hw", command: "echo Hello World")
+keybind("hb", command: "echo Hello Bob")
