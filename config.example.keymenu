@@ -9,3 +9,11 @@ keybind("r", description: "Reload shell", command: "exec $SHELL -l")
 
 keybind("hw", command: "echo Hello World")
 keybind("hb", command: "echo Hello Bob")
+
+group("1", description: "Numbered")
+keybind("11", command: "echo first")
+keybind("12", command: "echo second")
+keybind("13", command: "echo third")
+keybind("14", command: "echo fourth")
+
+keybind(":", command: "echo strange")
