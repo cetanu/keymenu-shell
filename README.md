@@ -23,21 +23,28 @@ Create `~/.config/keymenu/config.keymenu` (or set `KEYMENU_CONFIG` to another
 path):
 
 ```text
-group("g", description: "Git")
+group("g", "Git")
 
-keybind("gs", description: "Status", command: "git status")
-keybind("gl", description: "Recent log", command: "git log --oneline --decorate -20")
-keybind("p", description: "Open projects", command: "cd ~/projects")
-keybind("u", command: "uname -a")
+keybind("gs", "Status", "git status")
+keybind("gl", "Recent log", "git log --oneline --decorate -20")
+keybind("p", "Open projects", "cd ~/projects")
+keybind("u", "uname -a")
 ```
 
 The configuration language accepts only `group` and `keybind` statements.
-Whitespace, argument order, trailing commas, and `#` comments are supported.
-Strings support `\"`, `\\`, `\n`, `\r`, and `\t` escapes. Unknown statements,
-unknown or duplicate arguments, and malformed strings are errors.
+Whitespace, trailing commas, and `#` comments are supported. Arguments can be
+positional or keyword-based, including a mixture of both. Strings support
+`\"`, `\\`, `\n`, `\r`, and `\t` escapes. Unknown statements, unknown or
+duplicate keyword arguments, and malformed strings are errors.
 
-`description` is required for groups and optional for keybindings. When a
-keybinding omits it, the command is displayed as its description.
+`group` takes a key chord and description: `group("g", "Git")`. `keybind`
+takes a key chord, command, and optional description:
+`keybind("gs", "Status", "git status")`. When a keybinding omits its
+description, the command is displayed as its description. The equivalent
+keyword forms, such as `group("g", description: "Git")` and
+`keybind("gs", command: "git status", description: "Status")`, remain
+supported, as do mixed forms such as
+`keybind("gs", "Status", command: "git status")`.
 
 The first string is the key chord. Intermediate prefixes are inferred, and a
 `group` gives a prefix a useful name. A binding cannot also be the prefix of

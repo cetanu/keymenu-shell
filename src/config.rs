@@ -58,6 +58,11 @@ struct Parser<'a> {
     position: usize,
 }
 
+struct Arguments {
+    positional: Vec<String>,
+    keyword: BTreeMap<String, String>,
+}
+
 impl<'a> Parser<'a> {
     fn new(source: &'a str) -> Self {
         Self {
@@ -79,24 +84,26 @@ impl<'a> Parser<'a> {
             self.expect('(')?;
             self.skip_trivia();
             let keys = self.string()?;
-            let arguments = self.arguments()?;
+            let mut arguments = self.arguments()?;
 
             match statement.as_str() {
                 "group" => {
-                    let mut arguments = arguments;
-                    reject_unknown(&arguments, &["description"], "group")?;
-                    config.groups.push(Group {
-                        keys,
-                        description: take_argument(&mut arguments, "description", "group")?,
-                    });
+                    reject_unknown(&arguments.keyword, &["description"], "group")?;
+                    let description = argument_value(
+                        arguments.positional,
+                        &mut arguments.keyword,
+                        "description",
+                        "group",
+                    )?;
+                    config.groups.push(Group { keys, description });
                 }
                 "keybind" => {
-                    let mut arguments = arguments;
-                    reject_unknown(&arguments, &["description", "command"], "keybind")?;
+                    reject_unknown(&arguments.keyword, &["description", "command"], "keybind")?;
+                    let (command, description) = keybind_arguments(arguments)?;
                     config.bindings.push(Binding {
                         keys,
-                        description: arguments.remove("description"),
-                        command: take_argument(&mut arguments, "command", "keybind")?,
+                        description,
+                        command,
                     });
                 }
                 _ => return self.error(format!("unknown statement {statement:?}")),
@@ -107,26 +114,39 @@ impl<'a> Parser<'a> {
         Ok(config)
     }
 
-    fn arguments(&mut self) -> Result<BTreeMap<String, String>> {
-        let mut arguments = BTreeMap::new();
+    fn arguments(&mut self) -> Result<Arguments> {
+        let mut positional = Vec::new();
+        let mut keyword = BTreeMap::new();
         loop {
             self.skip_trivia();
             if self.consume(')') {
-                return Ok(arguments);
+                return Ok(Arguments {
+                    positional,
+                    keyword,
+                });
             }
             self.expect(',')?;
             self.skip_trivia();
             if self.consume(')') {
-                return Ok(arguments);
+                return Ok(Arguments {
+                    positional,
+                    keyword,
+                });
             }
 
-            let name = self.identifier()?;
+            let start = self.position;
+            let name = self.identifier();
             self.skip_trivia();
-            self.expect(':')?;
-            self.skip_trivia();
-            let value = self.string()?;
-            if arguments.insert(name.clone(), value).is_some() {
-                return self.error(format!("duplicate argument {name:?}"));
+            if self.consume(':') {
+                let name = name?;
+                self.skip_trivia();
+                let value = self.string()?;
+                if keyword.insert(name.clone(), value).is_some() {
+                    return self.error(format!("duplicate argument {name:?}"));
+                }
+            } else {
+                self.position = start;
+                positional.push(self.string()?);
             }
         }
     }
@@ -240,6 +260,61 @@ fn take_argument(
         .with_context(|| format!("{statement} is missing required argument {name:?}"))
 }
 
+fn argument_value(
+    mut positional: Vec<String>,
+    keyword: &mut BTreeMap<String, String>,
+    name: &str,
+    statement: &str,
+) -> Result<String> {
+    if positional.len() > 1 {
+        bail!("{statement} has too many positional arguments");
+    }
+    match (positional.pop(), keyword.remove(name)) {
+        (Some(_), Some(_)) => bail!("{statement} specifies argument {name:?} more than once"),
+        (Some(value), None) => Ok(value),
+        (None, Some(value)) => Ok(value),
+        (None, None) => take_argument(keyword, name, statement),
+    }
+}
+
+fn keybind_arguments(arguments: Arguments) -> Result<(String, Option<String>)> {
+    if arguments.positional.len() > 2 {
+        bail!("keybind has too many positional arguments");
+    }
+
+    let mut keyword = arguments.keyword;
+    let mut positional = arguments.positional.into_iter();
+    let named_description = keyword.remove("description");
+    let named_command = keyword.remove("command");
+
+    let (description, command) = match (named_description, named_command) {
+        (Some(description), Some(command)) => {
+            if positional.next().is_some() {
+                bail!("keybind specifies all arguments by keyword");
+            }
+            (Some(description), command)
+        }
+        (Some(description), None) => {
+            let command = positional
+                .next()
+                .context("keybind is missing required argument \"command\"")?;
+            (Some(description), command)
+        }
+        (None, Some(command)) => (positional.next(), command),
+        (None, None) => match (positional.next(), positional.next()) {
+            (Some(command), None) => (None, command),
+            (Some(description), Some(command)) => (Some(description), command),
+            (None, None) => bail!("keybind is missing required argument \"command\""),
+            (None, Some(_)) => bail!("keybind has too many positional arguments"),
+        },
+    };
+
+    if positional.next().is_some() {
+        bail!("keybind has too many positional arguments");
+    }
+    Ok((command, description))
+}
+
 fn reject_unknown(
     arguments: &BTreeMap<String, String>,
     allowed: &[&str],
@@ -263,8 +338,8 @@ mod tests {
         let config = parse(
             r#"
                 # Git commands
-                group("g", description: "Git")
-                keybind("gs", command: "printf \"ok\\n\"", description: "Status")
+                group("g", "Git")
+                keybind("gs", "Status", "printf \"ok\\n\"")
             "#,
         )
         .unwrap();
@@ -276,20 +351,87 @@ mod tests {
     }
 
     #[test]
-    fn rejects_unknown_arguments() {
-        let error = parse(r#"group("g", label: "Git")"#).unwrap_err();
-        assert!(error.to_string().contains("unknown argument \"label\""));
+    fn accepts_keyword_arguments() {
+        let config = parse(
+            r#"
+                group("g", description: "Git")
+                keybind("gs", description: "Status", command: "git status")
+            "#,
+        )
+        .unwrap();
+        assert_eq!(config.groups[0].description, "Git");
+        assert_eq!(config.bindings[0].command, "git status");
+    }
+
+    #[test]
+    fn accepts_mixed_arguments() {
+        let config = parse(r#"keybind("g", "Does a thing", command: "echo foo")"#).unwrap();
+        assert_eq!(
+            config.bindings[0].description.as_deref(),
+            Some("Does a thing")
+        );
+        assert_eq!(config.bindings[0].command, "echo foo");
+    }
+
+    #[test]
+    fn parses_all_argument_permutations() {
+        macro_rules! assert_statement {
+            ($source:literal => group($keys:literal, $description:literal)) => {{
+                let config = parse($source).unwrap();
+                assert!(config.bindings.is_empty(), "{}", $source);
+                assert_eq!(config.groups.len(), 1, "{}", $source);
+                assert_eq!(config.groups[0].keys, $keys, "{}", $source);
+                assert_eq!(config.groups[0].description, $description, "{}", $source);
+            }};
+            ($source:literal => keybind($keys:literal, $description:expr, $command:literal)) => {{
+                let config = parse($source).unwrap();
+                assert!(config.groups.is_empty(), "{}", $source);
+                assert_eq!(config.bindings.len(), 1, "{}", $source);
+                assert_eq!(config.bindings[0].keys, $keys, "{}", $source);
+                assert_eq!(
+                    config.bindings[0].description.as_deref(),
+                    $description,
+                    "{}",
+                    $source
+                );
+                assert_eq!(config.bindings[0].command, $command, "{}", $source);
+            }};
+        }
+
+        assert_statement!(r#"group("g", "Git")"# => group("g", "Git"));
+        assert_statement!(r#"group("g", description: "Git")"# => group("g", "Git"));
+
+        assert_statement!(
+            r#"keybind("g", "Does a thing", "echo foo")"#
+                => keybind("g", Some("Does a thing"), "echo foo")
+        );
+        assert_statement!(
+            r#"keybind("g", "Does a thing", command: "echo foo")"#
+                => keybind("g", Some("Does a thing"), "echo foo")
+        );
+        assert_statement!(
+            r#"keybind("g", description: "Does a thing", command: "echo foo")"#
+                => keybind("g", Some("Does a thing"), "echo foo")
+        );
+        assert_statement!(r#"keybind("g", "echo foo")"# => keybind("g", None, "echo foo"));
+        assert_statement!(
+            r#"keybind("g", command: "echo foo")"# => keybind("g", None, "echo foo")
+        );
+        assert_statement!(
+            r#"keybind("g", description: "Does a thing", "echo foo")"#
+                => keybind("g", Some("Does a thing"), "echo foo")
+        );
     }
 
     #[test]
     fn reports_line_and_column_for_syntax_errors() {
-        let error = parse("# comment\nkeybind(\"g\" description: \"Git\")").unwrap_err();
+        let error = parse("# comment\nkeybind(\"g\" \"Git\")").unwrap_err();
         assert!(error.to_string().contains("line 2, column 13"));
     }
 
     #[test]
     fn keybind_description_is_optional() {
-        let config = parse(r#"keybind("s", command: "git status")"#).unwrap();
+        let config = parse(r#"keybind("s", "git status")"#).unwrap();
         assert_eq!(config.bindings[0].description, None);
     }
 

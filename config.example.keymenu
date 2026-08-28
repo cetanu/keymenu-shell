@@ -1,19 +1,19 @@
 # Prefixes can be named so the root menu stays memorable.
-group("g", description: "Git")
+group("g", "Git")
 
-keybind("gs", description: "Status", command: "git status")
-keybind("gl", description: "Recent log", command: "git log --oneline --decorate -20")
+keybind("gs", "Status", "git status")
+keybind("gl", "Recent log", "git log --oneline --decorate -20")
 
-keybind("f", description: "List files", command: "ls -la")
-keybind("r", description: "Reload shell", command: "exec $SHELL -l")
+keybind("f", "List files", "ls -la")
+keybind("r", "Reload shell", "exec $SHELL -l")
 
-keybind("hw", command: "echo Hello World")
-keybind("hb", command: "echo Hello Bob")
+keybind("hw", "echo Hello World")
+keybind("hb", "echo Hello Bob")
 
-group("1", description: "Numbered")
-keybind("11", command: "echo first")
-keybind("12", command: "echo second")
-keybind("13", command: "echo third")
-keybind("14", command: "echo fourth")
+group("1", "Numbered")
+keybind("11", "echo first")
+keybind("12", "echo second")
+keybind("13", "echo third")
+keybind("14", "echo fourth")
 
-keybind(":", command: "echo strange")
+keybind(":", "echo strange")
