@@ -1,0 +1,5 @@
+[common]
+version = 2
+
+[sandbox]
+kind = "Bubblewrap"
