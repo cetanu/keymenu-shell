@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.5](https://github.com/cetanu/keymenu-shell/compare/v0.1.4...v0.1.5) - 2026-08-29
+
+### Added
+
+- fit menu descriptions to terminal width
+
+### Other
+
+- allow unsafe code in dependencies
+- allow trusted procedural macro dependencies
+- expand example menu configuration
+- add vet, cackle, and coverage checks
+- *(security)* configure cackle
+- *(security)* initialize cargo-vet
+
 ## [0.1.4](https://github.com/cetanu/keymenu-shell/compare/v0.1.3...v0.1.4) - 2026-08-28
 
 ### Added
