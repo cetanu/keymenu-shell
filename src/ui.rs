@@ -5,7 +5,9 @@ use crossterm::{
     cursor,
     event::{self, Event, KeyCode, KeyEvent, KeyModifiers},
     execute, queue,
-    style::{Attribute, Color, Print, ResetColor, SetAttribute, SetForegroundColor},
+    style::{
+        Attribute, Color, Print, ResetColor, SetAttribute, SetBackgroundColor, SetForegroundColor,
+    },
     terminal::{self, ClearType},
 };
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
@@ -88,8 +90,6 @@ fn draw(
 ) -> Result<()> {
     clear(out, old_lines)?;
     let choices = menu.choices(prefix);
-    let chord: String = prefix.iter().collect();
-    let title = if chord.is_empty() { "keymenu" } else { &chord };
     let key_width = choices
         .iter()
         .map(|choice| choice.key.width().unwrap_or(0))
@@ -108,33 +108,62 @@ fn draw(
         .iter()
         .map(|choice| truncate_description(choice.description, description_limit))
         .collect();
-    let description_width = descriptions
-        .iter()
-        .map(|description| description.width())
-        .max()
-        .unwrap_or(0);
 
+    queue!(out, Print(" "), SetAttribute(Attribute::Bold))?;
+    if prefix.is_empty() {
+        queue!(out, Print("keymenu"))?;
+    } else {
+        for (index, key) in prefix.iter().enumerate() {
+            queue!(
+                out,
+                SetForegroundColor(Color::White),
+                SetBackgroundColor(Color::DarkGrey),
+                Print(" "),
+                Print(key),
+                Print(" "),
+                ResetColor,
+                SetAttribute(Attribute::Bold),
+                Print(if index + 1 < prefix.len() {
+                    " → "
+                } else {
+                    ""
+                }),
+                SetAttribute(Attribute::Reset)
+            )?;
+        }
+    }
     queue!(
         out,
-        SetAttribute(Attribute::Bold),
-        Print(title),
         SetAttribute(Attribute::Reset),
+        ResetColor,
         Print("  "),
         SetForegroundColor(Color::DarkGrey),
-        Print("Esc cancel · Backspace parent\r\n"),
+        Print("Esc cancel · ⌫ back\r\n"),
         ResetColor
     )?;
+
     for (choice, description) in choices.into_iter().zip(descriptions) {
         queue!(
             out,
+            Print("  "),
             SetForegroundColor(Color::Cyan),
             SetAttribute(Attribute::Bold),
             Print(choice.key),
             SetAttribute(Attribute::Reset),
             ResetColor,
-            Print("  "),
-            Print(format!("{:description_width$}", description)),
-            Print(if choice.is_group { "  →" } else { "" }),
+            SetForegroundColor(if choice.is_group {
+                Color::DarkGrey
+            } else {
+                Color::DarkMagenta
+            }),
+            Print(if choice.is_group { " ↳ " } else { " ▸ " }),
+            SetAttribute(if choice.is_group {
+                Attribute::Bold
+            } else {
+                Attribute::Reset
+            }),
+            ResetColor,
+            Print(format!("{}", description)),
             Print("\r\n")
         )?;
     }
