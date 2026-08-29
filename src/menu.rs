@@ -28,7 +28,7 @@ pub struct Menu {
 impl Menu {
     pub fn new(config: Config) -> Result<Self> {
         if config.bindings.is_empty() {
-            bail!("config must contain at least one [[bindings]] entry");
+            bail!("config must contain at least one keybind");
         }
 
         let mut root = Node::default();
