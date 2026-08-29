@@ -90,6 +90,8 @@ The first available location is used:
 3. `$HOME/.config/keymenu/config.keymenu`
 
 Pass `--config PATH` to select a file for one invocation. Run `keymenu --help`
-for the complete command summary.
+for the complete command summary. Menu descriptions are truncated to fit the
+current terminal width; use `--max-description-width COLUMNS` to impose a
+narrower limit.
 
 See [`config.example.keymenu`](config.example.keymenu) for a ready-to-copy example.

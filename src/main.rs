@@ -27,6 +27,10 @@ struct Arguments {
     #[usage(short = 'c', long, global, value_name = "PATH", value_hint = usage::ValueHint::FilePath)]
     config: Option<PathBuf>,
 
+    /// Optional upper bound for menu description display width.
+    #[usage(long, global, value_name = "COLUMNS")]
+    max_description_width: Option<usize>,
+
     #[usage(subcommand)]
     command: Option<Subcommand>,
 }
@@ -49,16 +53,22 @@ struct Shell {
     shell: String,
 }
 
-fn choose(config_path: Option<PathBuf>) -> Result<Option<String>> {
+fn choose(
+    config_path: Option<PathBuf>,
+    max_description_width: Option<usize>,
+) -> Result<Option<String>> {
     let path = config_path.unwrap_or(config::default_path()?);
     let config =
         Config::load(&path).with_context(|| format!("could not load {}", path.display()))?;
     let menu = Menu::new(config)?;
-    ui::choose(&menu)
+    ui::choose(&menu, max_description_width)
 }
 
-fn execute_selected(config_path: Option<PathBuf>) -> Result<ExitCode> {
-    let Some(command) = choose(config_path)? else {
+fn execute_selected(
+    config_path: Option<PathBuf>,
+    max_description_width: Option<usize>,
+) -> Result<ExitCode> {
+    let Some(command) = choose(config_path, max_description_width)? else {
         return Ok(ExitCode::SUCCESS);
     };
     let shell = env::var_os("SHELL").context("SHELL is not set")?;
@@ -77,13 +87,15 @@ fn execute_selected(config_path: Option<PathBuf>) -> Result<ExitCode> {
 fn main() -> ExitCode {
     let arguments = Arguments::parse();
     let result = match arguments.command {
-        None => execute_selected(arguments.config),
-        Some(Subcommand::Select(Select)) => choose(arguments.config).map(|command| {
-            if let Some(command) = command {
-                println!("{command}");
-            }
-            ExitCode::SUCCESS
-        }),
+        None => execute_selected(arguments.config, arguments.max_description_width),
+        Some(Subcommand::Select(Select)) => {
+            choose(arguments.config, arguments.max_description_width).map(|command| {
+                if let Some(command) = command {
+                    println!("{command}");
+                }
+                ExitCode::SUCCESS
+            })
+        }
         Some(Subcommand::Shell(Shell { shell })) => shell::integration(&shell).map(|integration| {
             print!("{integration}");
             ExitCode::SUCCESS

@@ -8,11 +8,11 @@ use crossterm::{
     style::{Attribute, Color, Print, ResetColor, SetAttribute, SetForegroundColor},
     terminal::{self, ClearType},
 };
-use unicode_width::UnicodeWidthStr;
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 use crate::menu::Menu;
 
-pub fn choose(menu: &Menu) -> Result<Option<String>> {
+pub fn choose(menu: &Menu, max_description_width: Option<usize>) -> Result<Option<String>> {
     if !io::stdin().is_terminal() || !io::stderr().is_terminal() {
         bail!("interactive use requires stdin and stderr to be terminals");
     }
@@ -23,7 +23,13 @@ pub fn choose(menu: &Menu) -> Result<Option<String>> {
     let mut rendered_lines = 0;
 
     loop {
-        draw(&mut stderr, menu, &prefix, rendered_lines)?;
+        draw(
+            &mut stderr,
+            menu,
+            &prefix,
+            rendered_lines,
+            max_description_width,
+        )?;
         rendered_lines = menu.choices(&prefix).len() + 1;
 
         let Event::Key(key) = event::read().context("failed to read terminal input")? else {
@@ -73,14 +79,38 @@ pub fn choose(menu: &Menu) -> Result<Option<String>> {
     }
 }
 
-fn draw(out: &mut impl Write, menu: &Menu, prefix: &[char], old_lines: usize) -> Result<()> {
+fn draw(
+    out: &mut impl Write,
+    menu: &Menu,
+    prefix: &[char],
+    old_lines: usize,
+    max_description_width: Option<usize>,
+) -> Result<()> {
     clear(out, old_lines)?;
     let choices = menu.choices(prefix);
     let chord: String = prefix.iter().collect();
     let title = if chord.is_empty() { "keymenu" } else { &chord };
-    let description_width = choices
+    let key_width = choices
         .iter()
-        .map(|choice| choice.description.width())
+        .map(|choice| choice.key.width().unwrap_or(0))
+        .max()
+        .unwrap_or(0);
+    let arrow_width = if choices.iter().any(|choice| choice.is_group) {
+        3
+    } else {
+        0
+    };
+    let terminal_width = terminal::size()?.0 as usize;
+    let available_width = terminal_width.saturating_sub(key_width + 2 + arrow_width);
+    let description_limit =
+        max_description_width.map_or(available_width, |limit| limit.min(available_width));
+    let descriptions: Vec<String> = choices
+        .iter()
+        .map(|choice| truncate_description(choice.description, description_limit))
+        .collect();
+    let description_width = descriptions
+        .iter()
+        .map(|description| description.width())
         .max()
         .unwrap_or(0);
 
@@ -94,7 +124,7 @@ fn draw(out: &mut impl Write, menu: &Menu, prefix: &[char], old_lines: usize) ->
         Print("Esc cancel · Backspace parent\r\n"),
         ResetColor
     )?;
-    for choice in choices {
+    for (choice, description) in choices.into_iter().zip(descriptions) {
         queue!(
             out,
             SetForegroundColor(Color::Cyan),
@@ -103,13 +133,37 @@ fn draw(out: &mut impl Write, menu: &Menu, prefix: &[char], old_lines: usize) ->
             SetAttribute(Attribute::Reset),
             ResetColor,
             Print("  "),
-            Print(format!("{:description_width$}", choice.description)),
+            Print(format!("{:description_width$}", description)),
             Print(if choice.is_group { "  →" } else { "" }),
             Print("\r\n")
         )?;
     }
     out.flush()?;
     Ok(())
+}
+
+fn truncate_description(description: &str, max_width: usize) -> String {
+    if description.width() <= max_width {
+        return description.to_owned();
+    }
+    if max_width == 0 {
+        return String::new();
+    }
+
+    let ellipsis = '…';
+    let content_width = max_width.saturating_sub(ellipsis.width().unwrap_or(1));
+    let mut result = String::new();
+    let mut width = 0;
+    for character in description.chars() {
+        let character_width = character.width().unwrap_or(0);
+        if width + character_width > content_width {
+            break;
+        }
+        result.push(character);
+        width += character_width;
+    }
+    result.push(ellipsis);
+    result
 }
 
 fn clear(out: &mut impl Write, lines: usize) -> Result<()> {
@@ -158,5 +212,26 @@ impl Drop for RawMode {
             ResetColor,
             SetAttribute(Attribute::Reset)
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn truncates_descriptions_to_display_width() {
+        let description = truncate_description("A very long description", 10);
+
+        assert_eq!(description, "A very lo…");
+        assert_eq!(description.width(), 10);
+    }
+
+    #[test]
+    fn does_not_split_wide_characters() {
+        let description = truncate_description("界界界", 5);
+
+        assert_eq!(description, "界界…");
+        assert_eq!(description.width(), 5);
     }
 }
