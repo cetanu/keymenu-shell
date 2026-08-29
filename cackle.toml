@@ -4,13 +4,140 @@ version = 2
 [sandbox]
 kind = "Bubblewrap"
 
-# These dependencies execute during compilation and are intentionally allowed
-# to act as procedural macros under Cackle's rustc sandbox.
+# GitHub-hosted runners cannot create the private loopback network namespace
+# Bubblewrap otherwise attempts for rustc. Keep filesystem sandboxing enabled
+# while allowing rustc/proc-macro networking on the token-free Cackle job.
+[rustc.sandbox]
+allow_network = true
+
+[pkg.anyhow]
+allow_unsafe = true
+
+[pkg.bitflags]
+allow_unsafe = true
+
+[pkg.cfg-if]
+allow_unsafe = true
+
+[pkg.convert_case]
+allow_unsafe = true
+
+[pkg.crossterm]
+allow_unsafe = true
+
+[pkg.crossterm_winapi]
+allow_unsafe = true
+
 [pkg.document-features]
 allow_proc_macro = true
+allow_unsafe = true
 
-[pkg.usage-derive]
-allow_proc_macro = true
+[pkg.derive_more]
+allow_unsafe = true
 
 [pkg.derive_more-impl]
 allow_proc_macro = true
+allow_unsafe = true
+
+[pkg.errno]
+allow_unsafe = true
+
+[pkg.libc]
+allow_unsafe = true
+
+[pkg.linux-raw-sys]
+allow_unsafe = true
+
+[pkg.litrs]
+allow_unsafe = true
+
+[pkg.lock_api]
+allow_unsafe = true
+
+[pkg.log]
+allow_unsafe = true
+
+[pkg.mio]
+allow_unsafe = true
+
+[pkg.parking_lot]
+allow_unsafe = true
+
+[pkg.parking_lot_core]
+allow_unsafe = true
+
+[pkg.proc-macro2]
+allow_unsafe = true
+
+[pkg.quote]
+allow_unsafe = true
+
+[pkg.redox_syscall]
+allow_unsafe = true
+
+[pkg.rustc_version]
+allow_unsafe = true
+
+[pkg.rustix]
+allow_unsafe = true
+
+[pkg.scopeguard]
+allow_unsafe = true
+
+[pkg.semver]
+allow_unsafe = true
+
+[pkg.signal-hook]
+allow_unsafe = true
+
+[pkg.signal-hook-mio]
+allow_unsafe = true
+
+[pkg.signal-hook-registry]
+allow_unsafe = true
+
+[pkg.smallvec]
+allow_unsafe = true
+
+[pkg.syn]
+allow_unsafe = true
+
+[pkg.unicode-ident]
+allow_unsafe = true
+
+[pkg.unicode-segmentation]
+allow_unsafe = true
+
+[pkg.unicode-width]
+allow_unsafe = true
+
+[pkg.usage-argv]
+allow_unsafe = true
+
+[pkg.usage-derive]
+allow_proc_macro = true
+allow_unsafe = true
+
+[pkg.usage-rs]
+allow_unsafe = true
+
+[pkg.wasi]
+allow_unsafe = true
+
+[pkg.windows-link]
+allow_unsafe = true
+
+[pkg.windows-sys]
+allow_unsafe = true
+
+[pkg.keymenu-shell]
+allow_unsafe = true
+
+[pkg.winapi]
+allow_unsafe = true
+
+[pkg.winapi-i686-pc-windows-gnu]
+allow_unsafe = true
+
+[pkg.winapi-x86_64-pc-windows-gnu]
+allow_unsafe = true

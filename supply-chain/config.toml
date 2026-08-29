@@ -5,7 +5,7 @@
 version = "0.10"
 
 [policy.keymenu-shell]
-audit-as-crates-io = true
+audit-as-crates-io = false
 
 [[exemptions.anyhow]]
 version = "1.0.104"
@@ -45,10 +45,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.errno]]
 version = "0.3.14"
-criteria = "safe-to-deploy"
-
-[[exemptions.keymenu-shell]]
-version = "0.1.4"
 criteria = "safe-to-deploy"
 
 [[exemptions.libc]]

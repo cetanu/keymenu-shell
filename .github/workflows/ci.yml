@@ -15,15 +15,20 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
+permissions: {}
+
 jobs:
   commitlint:
     name: Lint Commit Messages
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Conventional Commits Check (PR)
         if: github.event_name == 'pull_request'
@@ -41,6 +46,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Install cargo-audit binary
         uses: taiki-e/install-action@cargo-audit
@@ -50,10 +57,13 @@ jobs:
 
   check:
     name: Quality Checks & Tests
+    needs: cackle
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -77,6 +87,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
       - name: Install cargo-vet
         run: cargo install --locked cargo-vet --version 0.10.2
@@ -84,9 +96,12 @@ jobs:
 
   coverage:
     name: Test coverage
+    needs: cackle
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: llvm-tools-preview
@@ -104,7 +119,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
+      - name: Install Bubblewrap and configure user namespaces
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes bubblewrap apparmor apparmor-profiles apparmor-utils
+          profile=/usr/share/apparmor/extra-profiles/bwrap-userns-restrict
+          if [ -f "$profile" ]; then
+            sudo install -m 0644 "$profile" /etc/apparmor.d/bwrap-userns-restrict
+            sudo apparmor_parser -r /etc/apparmor.d/bwrap-userns-restrict
+          elif sudo sysctl -n kernel.apparmor_restrict_unprivileged_userns >/dev/null 2>&1; then
+            # GitHub-hosted runners are ephemeral; use the fallback only when
+            # the distro does not ship the narrower Bubblewrap profile.
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          else
+            echo "No supported Bubblewrap user-namespace configuration found"
+            exit 1
+          fi
+          bwrap --ro-bind / / --proc /proc --dev /dev true
       - name: Install Cackle
         run: cargo install --locked cargo-acl --version 0.9.0
       - name: Check dependency ACL
@@ -127,6 +161,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -164,6 +199,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -194,6 +230,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: refs/tags/${{ needs.release.outputs.tag || github.event.inputs.release_tag }}
+          persist-credentials: false
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
