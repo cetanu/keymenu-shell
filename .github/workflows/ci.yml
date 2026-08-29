@@ -72,9 +72,49 @@ jobs:
       - name: Run Tests
         run: cargo test --all-targets --all-features --verbose
 
+  vet:
+    name: Vet dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-vet
+        run: cargo install --locked cargo-vet --version 0.10.2
+      - run: cargo vet --locked
+
+  coverage:
+    name: Test coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+      - name: Install cargo-tarpaulin
+        run: cargo install --locked cargo-tarpaulin --version 0.37.2
+      - name: Generate coverage report
+        run: cargo tarpaulin --locked --engine llvm --out Xml --output-dir target/tarpaulin
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tarpaulin-coverage
+          path: target/tarpaulin
+
+  cackle:
+    name: Cackle dependency ACL
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install Cackle
+        run: cargo install --locked cargo-acl --version 0.9.0
+      - name: Check dependency ACL
+        run: cargo acl -n
+      - name: Run tests under Cackle
+        run: cargo acl -n test
+
   release:
     name: Release (release-plz)
-    needs: [commitlint, audit, check]
+    needs: [commitlint, audit, check, vet]
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     outputs:
@@ -110,7 +150,7 @@ jobs:
 
   release-pr:
     name: Prepare Release PR
-    needs: [commitlint, audit, check]
+    needs: [commitlint, audit, check, vet]
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
