@@ -3,3 +3,14 @@ version = 2
 
 [sandbox]
 kind = "Bubblewrap"
+
+# These dependencies execute during compilation and are intentionally allowed
+# to act as procedural macros under Cackle's rustc sandbox.
+[pkg.document-features]
+allow_proc_macro = true
+
+[pkg.usage-derive]
+allow_proc_macro = true
+
+[pkg.derive_more-impl]
+allow_proc_macro = true
