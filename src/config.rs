@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, env, fs, path::Path, path::PathBuf};
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result, anyhow, bail};
 
 #[derive(Debug)]
 pub struct Config {
@@ -79,6 +79,7 @@ impl<'a> Parser<'a> {
 
         self.skip_trivia();
         while self.peek().is_some() {
+            let statement_line = self.line();
             let statement = self.identifier()?;
             self.skip_trivia();
             self.expect('(')?;
@@ -88,18 +89,28 @@ impl<'a> Parser<'a> {
 
             match statement.as_str() {
                 "group" => {
-                    reject_unknown(&arguments.keyword, &["description"], "group")?;
-                    let description = optional_argument_value(
-                        arguments.positional,
-                        &mut arguments.keyword,
-                        "description",
-                        "group",
+                    with_line(
+                        reject_unknown(&arguments.keyword, &["description"], "group"),
+                        statement_line,
+                    )?;
+                    let description = with_line(
+                        optional_argument_value(
+                            arguments.positional,
+                            &mut arguments.keyword,
+                            "description",
+                            "group",
+                        ),
+                        statement_line,
                     )?;
                     config.groups.push(Group { keys, description });
                 }
                 "keybind" => {
-                    reject_unknown(&arguments.keyword, &["description", "command"], "keybind")?;
-                    let (command, description) = keybind_arguments(arguments)?;
+                    with_line(
+                        reject_unknown(&arguments.keyword, &["description", "command"], "keybind"),
+                        statement_line,
+                    )?;
+                    let (command, description) =
+                        with_line(keybind_arguments(arguments), statement_line)?;
                     config.bindings.push(Binding {
                         keys,
                         description,
@@ -237,6 +248,14 @@ impl<'a> Parser<'a> {
         Some(character)
     }
 
+    fn line(&self) -> usize {
+        self.source[..self.position]
+            .bytes()
+            .filter(|byte| *byte == b'\n')
+            .count()
+            + 1
+    }
+
     fn error<T>(&self, message: impl std::fmt::Display) -> Result<T> {
         let before = &self.source[..self.position];
         let line = before.bytes().filter(|byte| *byte == b'\n').count() + 1;
@@ -248,6 +267,10 @@ impl<'a> Parser<'a> {
             + 1;
         bail!("line {line}, column {column}: {message}")
     }
+}
+
+fn with_line<T>(result: Result<T>, line: usize) -> Result<T> {
+    result.map_err(|error| anyhow!("line {line}: {error:#}"))
 }
 
 fn optional_argument_value(
@@ -423,6 +446,15 @@ mod tests {
     fn reports_line_and_column_for_syntax_errors() {
         let error = parse("# comment\nkeybind(\"g\" \"Git\")").unwrap_err();
         assert!(error.to_string().contains("line 2, column 13"));
+    }
+
+    #[test]
+    fn reports_line_for_argument_validation_errors() {
+        let error = parse("group(\"g\")\nkeybind(\"z\")").unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "line 2: keybind is missing required argument \"command\""
+        );
     }
 
     #[test]
