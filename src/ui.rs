@@ -185,7 +185,7 @@ fn draw(
                 Attribute::Reset
             }),
             ResetColor,
-            Print(format!("{}", description)),
+            Print(description.to_string()),
             Print("\r\n")
         )?;
     }
