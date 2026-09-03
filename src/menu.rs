@@ -5,6 +5,7 @@ use anyhow::{Result, bail};
 use crate::config::{Binding, Config, Group};
 
 const OMITTED: &str = "…";
+const BROKEN_COMMAND: &str = "[missing command]";
 
 #[derive(Debug, Default)]
 struct Node {
@@ -62,6 +63,11 @@ impl Menu {
 
     pub fn contains_prefix(&self, keys: &[char]) -> bool {
         self.node(keys).is_some()
+    }
+
+    pub fn is_broken(&self, keys: &[char]) -> bool {
+        self.node(keys)
+            .is_some_and(|node| node.command.is_none() && node.children.is_empty())
     }
 
     fn node(&self, keys: &[char]) -> Option<&Node> {
@@ -135,7 +141,11 @@ fn insert_binding(root: &mut Node, binding: Binding) -> Result<()> {
     {
         bail!("binding {:?} has an empty description", binding.keys);
     }
-    if binding.command.trim().is_empty() {
+    if binding
+        .command
+        .as_deref()
+        .is_some_and(|command| command.trim().is_empty())
+    {
         bail!("binding {:?} has an empty command", binding.keys);
     }
     let keys = binding.keys.clone();
@@ -143,12 +153,14 @@ fn insert_binding(root: &mut Node, binding: Binding) -> Result<()> {
     match node.command {
         Some(_) => bail!("duplicate binding {keys:?}"),
         None => {
-            node.description = Some(
-                binding
-                    .description
-                    .unwrap_or_else(|| binding.command.clone()),
-            );
-            node.command = Some(binding.command);
+            let description = match (&binding.description, &binding.command) {
+                (Some(description), Some(_)) => description.clone(),
+                (Some(description), None) => format!("{description} {BROKEN_COMMAND}"),
+                (None, Some(command)) => command.clone(),
+                (None, None) => BROKEN_COMMAND.into(),
+            };
+            node.description = Some(description);
+            node.command = binding.command;
             Ok(())
         }
     }
@@ -180,12 +192,12 @@ mod tests {
                 Binding {
                     keys: "gs".into(),
                     description: Some("Status".into()),
-                    command: "git status".into(),
+                    command: Some("git status".into()),
                 },
                 Binding {
                     keys: "f".into(),
                     description: Some("Files".into()),
-                    command: "ls".into(),
+                    command: Some("ls".into()),
                 },
             ],
         }
@@ -210,7 +222,7 @@ mod tests {
         config.bindings.push(Binding {
             keys: "g".into(),
             description: Some("Git command".into()),
-            command: "git".into(),
+            command: Some("git".into()),
         });
         let error = Menu::new(config).unwrap_err();
         assert!(error.to_string().contains("also a prefix"));
@@ -234,11 +246,31 @@ mod tests {
             bindings: vec![Binding {
                 keys: "s".into(),
                 description: None,
-                command: "git status".into(),
+                command: Some("git status".into()),
             }],
         };
         let menu = Menu::new(config).unwrap();
         assert_eq!(menu.choices(&[])[0].description, "git status");
+    }
+
+    #[test]
+    fn marks_bindings_without_commands_as_broken() {
+        let config = Config {
+            groups: vec![],
+            bindings: vec![Binding {
+                keys: "z".into(),
+                description: Some("Broken shortcut".into()),
+                command: None,
+            }],
+        };
+        let menu = Menu::new(config).unwrap();
+
+        assert_eq!(
+            menu.choices(&[])[0].description,
+            "Broken shortcut [missing command]"
+        );
+        assert!(menu.is_broken(&['z']));
+        assert_eq!(menu.command(&['z']), None);
     }
 
     #[test]
@@ -251,7 +283,7 @@ mod tests {
             bindings: vec![Binding {
                 keys: "gs".into(),
                 description: None,
-                command: "git status".into(),
+                command: Some("git status".into()),
             }],
         };
         let menu = Menu::new(config).unwrap();

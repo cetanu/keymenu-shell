@@ -18,7 +18,7 @@ pub struct Group {
 pub struct Binding {
     pub keys: String,
     pub description: Option<String>,
-    pub command: String,
+    pub command: Option<String>,
 }
 
 impl Config {
@@ -290,7 +290,7 @@ fn optional_argument_value(
     }
 }
 
-fn keybind_arguments(arguments: Arguments) -> Result<(String, Option<String>)> {
+fn keybind_arguments(arguments: Arguments) -> Result<(Option<String>, Option<String>)> {
     if arguments.positional.len() > 2 {
         bail!("keybind has too many positional arguments");
     }
@@ -305,19 +305,19 @@ fn keybind_arguments(arguments: Arguments) -> Result<(String, Option<String>)> {
             if positional.next().is_some() {
                 bail!("keybind specifies all arguments by keyword");
             }
-            (Some(description), command)
+            (Some(description), Some(command))
         }
         (Some(description), None) => {
             let command = positional
                 .next()
                 .context("keybind is missing required argument \"command\"")?;
-            (Some(description), command)
+            (Some(description), Some(command))
         }
-        (None, Some(command)) => (positional.next(), command),
+        (None, Some(command)) => (positional.next(), Some(command)),
         (None, None) => match (positional.next(), positional.next()) {
-            (Some(command), None) => (None, command),
-            (Some(description), Some(command)) => (Some(description), command),
-            (None, None) => bail!("keybind is missing required argument \"command\""),
+            (Some(command), None) => (None, Some(command)),
+            (Some(description), Some(command)) => (Some(description), Some(command)),
+            (None, None) => (None, None),
             (None, Some(_)) => bail!("keybind has too many positional arguments"),
         },
     };
@@ -360,7 +360,10 @@ mod tests {
         assert_eq!(config.groups[0].description.as_deref(), Some("Git"));
         assert_eq!(config.bindings[0].keys, "gs");
         assert_eq!(config.bindings[0].description.as_deref(), Some("Status"));
-        assert_eq!(config.bindings[0].command, r#"printf "ok\n""#);
+        assert_eq!(
+            config.bindings[0].command.as_deref(),
+            Some(r#"printf "ok\n""#)
+        );
     }
 
     #[test]
@@ -373,7 +376,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(config.groups[0].description.as_deref(), Some("Git"));
-        assert_eq!(config.bindings[0].command, "git status");
+        assert_eq!(config.bindings[0].command.as_deref(), Some("git status"));
     }
 
     #[test]
@@ -383,7 +386,7 @@ mod tests {
             config.bindings[0].description.as_deref(),
             Some("Does a thing")
         );
-        assert_eq!(config.bindings[0].command, "echo foo");
+        assert_eq!(config.bindings[0].command.as_deref(), Some("echo foo"));
     }
 
     #[test]
@@ -412,7 +415,12 @@ mod tests {
                     "{}",
                     $source
                 );
-                assert_eq!(config.bindings[0].command, $command, "{}", $source);
+                assert_eq!(
+                    config.bindings[0].command.as_deref(),
+                    Some($command),
+                    "{}",
+                    $source
+                );
             }};
         }
 
@@ -449,12 +457,9 @@ mod tests {
     }
 
     #[test]
-    fn reports_line_for_argument_validation_errors() {
-        let error = parse("group(\"g\")\nkeybind(\"z\")").unwrap_err();
-        assert_eq!(
-            error.to_string(),
-            "line 2: keybind is missing required argument \"command\""
-        );
+    fn accepts_keybind_without_command() {
+        let config = parse("group(\"g\")\nkeybind(\"z\")").unwrap();
+        assert_eq!(config.bindings[0].command, None);
     }
 
     #[test]

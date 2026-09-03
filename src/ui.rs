@@ -23,6 +23,7 @@ pub fn choose(menu: &Menu, max_description_width: Option<usize>) -> Result<Optio
     let mut stderr = io::stderr().lock();
     let mut prefix = Vec::new();
     let mut rendered_lines = 0;
+    let mut error = None;
 
     loop {
         draw(
@@ -31,8 +32,9 @@ pub fn choose(menu: &Menu, max_description_width: Option<usize>) -> Result<Optio
             &prefix,
             rendered_lines,
             max_description_width,
+            error.as_deref(),
         )?;
-        rendered_lines = menu.choices(&prefix).len() + 1;
+        rendered_lines = menu.choices(&prefix).len() + 1 + usize::from(error.is_some());
 
         let Event::Key(key) = event::read().context("failed to read terminal input")? else {
             continue;
@@ -58,6 +60,7 @@ pub fn choose(menu: &Menu, max_description_width: Option<usize>) -> Result<Optio
                 ..
             } => {
                 prefix.pop();
+                error = None;
             }
             KeyEvent {
                 code: KeyCode::Char(key),
@@ -70,8 +73,15 @@ pub fn choose(menu: &Menu, max_description_width: Option<usize>) -> Result<Optio
                     clear(&mut stderr, rendered_lines)?;
                     return Ok(Some(command));
                 }
+                if menu.is_broken(&prefix) {
+                    let keys = prefix.iter().collect::<String>();
+                    prefix.pop();
+                    error = Some(format!("keybind {keys:?} is broken: missing command"));
+                    continue;
+                }
                 if !menu.contains_prefix(&prefix) {
                     prefix.pop();
+                    error = None;
                     write!(stderr, "\x07")?;
                     stderr.flush()?;
                 }
@@ -87,6 +97,7 @@ fn draw(
     prefix: &[char],
     old_lines: usize,
     max_description_width: Option<usize>,
+    error: Option<&str>,
 ) -> Result<()> {
     clear(out, old_lines)?;
     let choices = menu.choices(prefix);
@@ -141,6 +152,17 @@ fn draw(
         Print("Esc cancel · ⌫ back\r\n"),
         ResetColor
     )?;
+
+    if let Some(error) = error {
+        queue!(
+            out,
+            SetForegroundColor(Color::Red),
+            Print("  ⚠ "),
+            Print(error),
+            Print("\r\n"),
+            ResetColor
+        )?;
+    }
 
     for (choice, description) in choices.into_iter().zip(descriptions) {
         queue!(
