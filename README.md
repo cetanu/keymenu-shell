@@ -74,8 +74,10 @@ For bash, add this to `~/.bashrc`:
 eval "$(keymenu shell bash)"
 ```
 
-Then type `K` at the prompt. Press a displayed key to continue, Backspace to
-move to the parent menu, or Escape/Ctrl-C to cancel.
+The generated integration binds Shift+K to open keymenu immediately at an empty
+prompt. While editing a command, Shift+K continues to insert an uppercase `K`
+normally. Press a displayed key to continue, Backspace to move to the parent
+menu, or Escape/Ctrl-C to cancel.
 
 Other shells can use the same protocol: capture `keymenu select`'s standard
 output and evaluate it only when non-empty and successful. The interactive UI
