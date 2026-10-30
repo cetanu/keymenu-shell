@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.8](https://github.com/cetanu/keymenu-shell/compare/v0.1.7...v0.1.8) - 2026-10-30
+
+### Fixed
+
+- adapt to usage-rs v7 import changes
+
+### Other
+
+- audit deps
+- update deps (usage-rs)
+
 ## [0.1.7](https://github.com/cetanu/keymenu-shell/compare/v0.1.6...v0.1.7) - 2026-09-05
 
 ### Added
