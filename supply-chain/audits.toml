@@ -1,4 +1,67 @@
 
 # cargo-vet audits file
 
-[audits]
+[[audits.bitflags]]
+who = "Vasilios Syrakis <syrakis@pm.me>"
+criteria = "safe-to-deploy"
+delta = "2.13.1 -> 2.13.2"
+
+[[audits.cfg-if]]
+who = "Vasilios Syrakis <syrakis@pm.me>"
+criteria = "safe-to-deploy"
+delta = "1.0.4 -> 1.0.5"
+
+[[audits.libc]]
+who = "Vasilios Syrakis <syrakis@pm.me>"
+criteria = "safe-to-deploy"
+delta = "0.2.189 -> 0.2.191"
+
+[[audits.litrs]]
+who = "Vasilios Syrakis <syrakis@pm.me>"
+criteria = "safe-to-deploy"
+delta = "1.0.0 -> 1.0.1"
+
+[[audits.mio]]
+who = "Vasilios Syrakis <syrakis@pm.me>"
+criteria = "safe-to-deploy"
+delta = "1.2.2 -> 1.2.4"
+
+[[audits.rustix]]
+who = "Vasilios Syrakis <syrakis@pm.me>"
+criteria = "safe-to-deploy"
+delta = "1.1.4 -> 1.1.6"
+
+[[audits.smallvec]]
+who = "Vasilios Syrakis <syrakis@pm.me>"
+criteria = "safe-to-deploy"
+delta = "1.15.2 -> 1.16.4"
+
+[[audits.syn]]
+who = "Vasilios Syrakis <syrakis@pm.me>"
+criteria = "safe-to-deploy"
+delta = "3.0.4 -> 3.0.9"
+
+[[audits.unicode-ident]]
+who = "Vasilios Syrakis <syrakis@pm.me>"
+criteria = "safe-to-deploy"
+delta = "1.0.24 -> 1.0.27"
+
+[[audits.unicode-width]]
+who = "Vasilios Syrakis <syrakis@pm.me>"
+criteria = "safe-to-deploy"
+delta = "0.2.2 -> 0.2.3"
+
+[[audits.usage-argv]]
+who = "Vasilios Syrakis <syrakis@pm.me>"
+criteria = "safe-to-deploy"
+delta = "6.4.1 -> 7.1.3"
+
+[[audits.usage-derive]]
+who = "Vasilios Syrakis <syrakis@pm.me>"
+criteria = "safe-to-deploy"
+delta = "6.4.1 -> 7.1.3"
+
+[[audits.usage-rs]]
+who = "Vasilios Syrakis <syrakis@pm.me>"
+criteria = "safe-to-deploy"
+delta = "6.4.1 -> 7.1.3"
