@@ -14,7 +14,7 @@ path = "src/main.rs"
 anyhow = "1.0"
 crossterm = "0.29"
 unicode-width = "0.2"
-usage = { package = "usage-rs", version = "7" }
+usage-rs = "7"
 
 [profile.release]
 codegen-units = 1

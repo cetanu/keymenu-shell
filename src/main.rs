@@ -10,7 +10,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use usage::{Args, Cli, Subcommands};
+use usage_rs::{Args, Cli, Subcommands};
 
 use crate::{config::Config, menu::Menu};
 
@@ -24,7 +24,7 @@ use crate::{config::Config, menu::Menu};
 )]
 struct Arguments {
     /// Use this configuration file.
-    #[usage(short = 'c', long, global, value_name = "PATH", value_hint = usage::ValueHint::FilePath)]
+    #[usage(short = 'c', long, global, value_name = "PATH", value_hint = usage_rs::ValueHint::FilePath)]
     config: Option<PathBuf>,
 
     /// Optional upper bound for menu description display width.
