@@ -8,7 +8,8 @@ end
 
 function __keymenu_hotkey
     if test -z (commandline)
-        K
+        commandline --replace K
+        commandline --function execute
     else
         commandline --insert K
     end
@@ -19,8 +20,8 @@ bind K __keymenu_hotkey
 
 const BASH_INTEGRATION: &str = r#"K() {
     local keymenu_command
-    keymenu_command="$(command keymenu select)" &&
-        [[ -z "$keymenu_command" ]] || eval "$keymenu_command"
+    keymenu_command="$(command keymenu select)" || return $?
+    [[ -z "$keymenu_command" ]] || eval "$keymenu_command"
 }
 
 __keymenu_hotkey() {
@@ -37,15 +38,14 @@ bind -x '"K":__keymenu_hotkey'
 
 const ZSH_INTEGRATION: &str = r#"K() {
     local keymenu_command
-    keymenu_command="$(command keymenu select)" &&
-        [[ -z "$keymenu_command" ]] || eval "$keymenu_command"
+    keymenu_command="$(command keymenu select)" || return $?
+    [[ -z "$keymenu_command" ]] || eval "$keymenu_command"
 }
 
 __keymenu_hotkey() {
     if [[ -z "$BUFFER" ]]; then
-        zle -I
-        K
-        zle reset-prompt
+        BUFFER=K
+        zle accept-line
     else
         LBUFFER+='K'
     fi

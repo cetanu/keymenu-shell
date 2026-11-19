@@ -1,0 +1,17 @@
+set timeout 5
+set env(TERM) xterm
+set env(KEYMENU_CONFIG) [lindex $argv 1]
+set binary [lindex $argv 0]
+spawn fish --no-config --interactive
+send -- "function fish_prompt; printf 'FISH_PROMPT:%s>' \$status; end; $binary shell fish | source\r"
+expect "FISH_PROMPT:0>"
+send -- "K"
+expect {
+    "keymenu" {}
+    timeout { exit 1 }
+}
+send -- "f"
+expect {
+    "FISH_PROMPT:7>" { exit 0 }
+    timeout { exit 1 }
+}
